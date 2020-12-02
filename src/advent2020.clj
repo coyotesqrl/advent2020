@@ -81,6 +81,12 @@
 (defn -main []
   (run-tests 'advent2020))
 
+(deftest find-addends
+  (are [exp-result num-addends exp-sum input]
+    (= exp-result (set (extract-addends num-addends exp-sum input)))
+    #{1000 1020} 2 2020 '(1010 999 1020 100 1000)
+    #{5 6 7} 3 18 '(18 8 10 9 5 19 6 20 7)))
+
 (deftest test-password-parse
   (is (= '(1 3 \a "abcde") (read-password-line "1-3 a: abcde"))))
 
