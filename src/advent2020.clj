@@ -5,7 +5,10 @@
 
 (defn read-input
   [filename]
-  (line-seq (io/reader (io/resource filename))))
+  (->> filename
+       io/resource
+       io/reader
+       line-seq))
 
 (defn extract-addends
   [num-addends exp-sum input]
