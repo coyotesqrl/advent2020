@@ -24,9 +24,7 @@
 
 (defn password-rule-match-1
   [[min max ltr pwd]]
-  (let [cnt (count-chars ltr pwd)]
-    (and (<= cnt max) (>= cnt min))
-    ))
+  (<= min (count-chars ltr pwd) max))
 
 (defn password-rule-match-2
   [[idx1 idx2 ltr pwd]]
