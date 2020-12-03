@@ -56,14 +56,14 @@
         (str/replace s #"#" "1")
         (Integer/parseInt s 2)))
 
-(defn check-tobaggon-row
+(defn check-toboggan-row
   [x line]
   (not= 0 (bit-and (line->num line) (math/expt 2 x))))
 
 (defn count-toboggan-collisions
   [x-step y-step input]
   (let [red (fn [a b] (list (mod (+ (first a) x-step) 31)
-                            (if (check-tobaggon-row (first a) b)
+                            (if (check-toboggan-row (first a) b)
                               (inc (second a))
                               (second a))))]
     (->> input
@@ -135,9 +135,9 @@
                           password-rule-match-2 '(3 6 \b "xyckecccc") false
                           password-rule-match-2 '(3 6 \b "xyckecd") false))
 
-(deftest test-check-tobaggon-row
+(deftest test-check-toboggan-row
   "Tests for positions within int boundary length. Does not handle modulo."
-  (are [x row result] (= (check-tobaggon-row x row) result)
+  (are [x row result] (= (check-toboggan-row x row) result)
                       0 ".#...#....#...#.#..........#.#." false
                       1 ".#...#....#...#.#..........#.#." true
                       4 ".#...#....#...#.#..........#.#." false
