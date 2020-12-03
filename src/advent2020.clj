@@ -1,7 +1,9 @@
 (ns advent2020
   (:require [clojure.math.combinatorics :as comb]
             [clojure.test :refer :all]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [clojure.math.numeric-tower :as math]))
 
 (defn read-input
   [filename]
@@ -46,6 +48,28 @@
           (first (char-array (nth mtc 3)))
           (nth mtc 4))))
 
+(defn line->num
+  "Reads and flips an input line, interpreting . as 0 and # as 1."
+  [line]
+  (as-> (str/reverse line) s
+        (str/replace s #"\." "0")
+        (str/replace s #"#" "1")
+        (Integer/parseInt s 2)))
+
+(defn check-tobaggon-row
+  [x line]
+  (not= 0 (bit-and (line->num line) (math/expt 2 x))))
+
+(defn count-toboggan-collisions
+  [x-step y-step input]
+  (let [red (fn [a b] (list (mod (+ (first a) x-step) 31)
+                            (if (check-tobaggon-row (first a) b)
+                              (inc (second a))
+                              (second a))))]
+    (->> input
+         (take-nth y-step)
+         (reduce red '(0 0)))))
+
 ;
 ; Main entry functions below this line
 ;
@@ -66,11 +90,20 @@
        (filter #(pw-match-fn (read-password-line %)))
        count))
 
+(defn advent-3
+  [steps input]
+  (let [input (read-input input)]
+    (->> (map #(count-toboggan-collisions (first %) (second %) input) steps)
+         (map second)
+         (apply *))))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
   (advent-2 password-rule-match-1 "day2.txt")
   (advent-2 password-rule-match-2 "day2.txt")
+  (advent-3 3 1 "day3.txt")
+  (advent-3 [[1 1] [3 1] [5 1] [7 1] [1 2]] "day3.txt")
   )
 
 ;
@@ -101,3 +134,18 @@
                           password-rule-match-2 '(3 6 \b "xybkebbbb") false
                           password-rule-match-2 '(3 6 \b "xyckecccc") false
                           password-rule-match-2 '(3 6 \b "xyckecd") false))
+
+(deftest test-check-tobaggon-row
+  "Tests for positions within int boundary length. Does not handle modulo."
+  (are [x row result] (= (check-tobaggon-row x row) result)
+                      0 ".#...#....#...#.#..........#.#." false
+                      1 ".#...#....#...#.#..........#.#." true
+                      4 ".#...#....#...#.#..........#.#." false
+                      5 ".#...#....#...#.#..........#.#." true
+                      28 ".#...#....#...#.#..........#.#." false
+                      29 ".#...#....#...#.#..........#.#." true
+                      30 ".#...#....#...#.#..........#.#." false
+                      31 ".#...#....#...#.#..........#.#." false))
+
+(deftest test-toboggan-collisions
+  (is (= '(24 4) (count-toboggan-collisions 3 2 (read-input "test-day3.txt")))))
