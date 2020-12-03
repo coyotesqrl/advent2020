@@ -62,10 +62,11 @@
 
 (defn count-toboggan-collisions
   [x-step y-step input]
-  (let [red (fn [a b] (list (mod (+ (first a) x-step) 31)
-                            (if (check-toboggan-row (first a) b)
-                              (inc (second a))
-                              (second a))))]
+  (let [red (fn [[col cnt] b]
+              (list (mod (+ col x-step) 31)
+                    (if (check-toboggan-row col b)
+                      (inc cnt)
+                      cnt)))]
     (->> input
          (take-nth y-step)
          (reduce red '(0 0)))))
