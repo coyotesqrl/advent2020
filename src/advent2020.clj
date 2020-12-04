@@ -80,18 +80,18 @@
   (is (= '(1 3 \a "abcde") (read-password-line "1-3 a: abcde"))))
 
 (deftest test-password-rule-matchers
-  (are [matchfn pw valid] (= (matchfn pw) valid)
-                          password-rule-match-1 '(1 3 \a "defaghi") true
-                          password-rule-match-1 '(1 3 \a "defaghia") true
-                          password-rule-match-1 '(1 3 \a "defaghiaxda") true
-                          password-rule-match-1 '(1 3 \a "defaghiacaca") false
-                          password-rule-match-2 '(3 6 \b "axbhkklaid") true
-                          password-rule-match-2 '(3 6 \b "axb") true
-                          password-rule-match-2 '(3 6 \b "xyakeb") true
-                          password-rule-match-2 '(3 6 \b "xyakebbbb") true
-                          password-rule-match-2 '(3 6 \b "xybkebbbb") false
-                          password-rule-match-2 '(3 6 \b "xyckecccc") false
-                          password-rule-match-2 '(3 6 \b "xyckecd") false))
+  (are [matchfn pw test-fn] (test-fn (matchfn pw))
+                            password-rule-match-1 '(1 3 \a "defaghi") true?
+                            password-rule-match-1 '(1 3 \a "defaghia") true?
+                            password-rule-match-1 '(1 3 \a "defaghiaxda") true?
+                            password-rule-match-1 '(1 3 \a "defaghiacaca") not
+                            password-rule-match-2 '(3 6 \b "axbhkklaid") true?
+                            password-rule-match-2 '(3 6 \b "axb") true?
+                            password-rule-match-2 '(3 6 \b "xyakeb") true?
+                            password-rule-match-2 '(3 6 \b "xyakebbbb") true?
+                            password-rule-match-2 '(3 6 \b "xybkebbbb") not
+                            password-rule-match-2 '(3 6 \b "xyckecccc") not
+                            password-rule-match-2 '(3 6 \b "xyckecd") not))
 
 (defn advent-2
   "Parses each line of the input and counts passwords that are valid given the `pw-match-fn`
@@ -129,15 +129,15 @@
 
 (deftest test-check-toboggan-row
   "Tests for positions within int boundary length. Does not handle modulo."
-  (are [x row result] (= (check-toboggan-row x row) result)
-                      0 ".#...#....#...#.#..........#.#." false
-                      1 ".#...#....#...#.#..........#.#." true
-                      4 ".#...#....#...#.#..........#.#." false
-                      5 ".#...#....#...#.#..........#.#." true
-                      28 ".#...#....#...#.#..........#.#." false
-                      29 ".#...#....#...#.#..........#.#." true
-                      30 ".#...#....#...#.#..........#.#." false
-                      31 ".#...#....#...#.#..........#.#." false))
+  (are [x row test-fn] (test-fn (check-toboggan-row x row))
+                       0 ".#...#....#...#.#..........#.#." not
+                       1 ".#...#....#...#.#..........#.#." true?
+                       4 ".#...#....#...#.#..........#.#." not
+                       5 ".#...#....#...#.#..........#.#." true?
+                       28 ".#...#....#...#.#..........#.#." not
+                       29 ".#...#....#...#.#..........#.#." true?
+                       30 ".#...#....#...#.#..........#.#." not
+                       31 ".#...#....#...#.#..........#.#." not))
 
 (deftest test-toboggan-collisions
   (is (= '(24 4) (count-toboggan-collisions 3 2 (read-input "test-day3.txt")))))
@@ -180,12 +180,10 @@
 
 (defn hgt-test
   [input]
-  (let [[full val unit] (re-matches #"(\d*)(cm|in)" input)]
-    (if (not full)
-      false
-      (if (= unit "cm")
-        (<= 150 (Integer/parseInt val) 193)
-        (<= 59 (Integer/parseInt val) 76)))))
+  (when-let [[_ val unit] (re-matches #"(\d*)(cm|in)" input)]
+    (if (= unit "cm")
+      (<= 150 (Integer/parseInt val) 193)
+      (<= 59 (Integer/parseInt val) 76))))
 
 (def ecl-vals #{"amb" "blu" "brn" "gry" "grn" "hzl" "oth"})
 
@@ -198,26 +196,26 @@
                         "pid" (fn [d] (->> (get d "pid") (re-matches #"\d{9}")))})
 
 (deftest test-year-test
-  (are [min max input result] (= (year-test min max input) result)
-                              1920 2000 "1950" true
-                              1920 2000 "2950" false
-                              1920 2000 "1920" true
-                              1920 2000 "2000" true
-                              1920 2000 "1919" false
-                              1920 2000 "195a" false))
+  (are [min max input test-fn] (test-fn (year-test min max input))
+                               1920 2000 "1950" true?
+                               1920 2000 "2950" not
+                               1920 2000 "1920" true?
+                               1920 2000 "2000" true?
+                               1920 2000 "1919" not
+                               1920 2000 "195a" not))
 
 (deftest test-hgt-test
-  (are [input result] (= (hgt-test input) result)
-                      "150cm" true
-                      "193cm" true
-                      "149cm" false
-                      "194cm" false
-                      "59in" true
-                      "76in" true
-                      "58in" false
-                      "77in" false
-                      "70xy" false
-                      "70" false))
+  (are [input test-fn] (test-fn (hgt-test input))
+                       "150cm" true?
+                       "193cm" true?
+                       "149cm" not
+                       "194cm" not
+                       "59in" true?
+                       "76in" true?
+                       "58in" not
+                       "77in" not
+                       "70xy" not
+                       "70" not))
 
 (def test-passport-in '({"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; good
                         {"byr" "1871" "iyr" "2020" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad byr
