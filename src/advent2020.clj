@@ -127,6 +127,14 @@
          (take-nth y-step)
          (reduce red '(0 0)))))
 
+(defn line->mapentries
+  [l]
+  (let [[ks vs]
+        (->> (str/split l #"\s")
+             (map #(str/split % #"[:]"))
+             (apply map vector))]
+    (zipmap ks vs)))
+
 (deftest test-check-toboggan-row
   "Tests for positions within int boundary length. Does not handle modulo."
   (are [x row result] (= (check-toboggan-row x row) result)
@@ -152,14 +160,6 @@
 ; ************
 ; Day 4
 ; ************
-(defn line->mapentries
-  [l]
-  (let [[ks vs]
-        (->> (str/split l #"\s")
-             (map #(str/split % #"[:]"))
-             (apply map vector))]
-    (zipmap ks vs)))
-
 (defn input->passport
   [input]
   (reduce (fn
