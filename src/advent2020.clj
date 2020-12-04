@@ -70,11 +70,11 @@
 (defn read-password-line
   "Reads password line from db and returns min, max, ltr, pwd"
   [line]
-  (let [mtc (re-matches #"(\d*)-(\d*)\s*(.):\s*(.*)$" line)]
-    (list (Integer/parseInt (second mtc))
-          (Integer/parseInt (nth mtc 2))
-          (first (char-array (nth mtc 3)))
-          (nth mtc 4))))
+  (let [[_ min max ltr pwd] (re-matches #"(\d*)-(\d*)\s*(.):\s*(.*)$" line)]
+    (list (Integer/parseInt min)
+          (Integer/parseInt max)
+          (first (char-array ltr))
+          pwd)))
 
 (deftest test-password-parse
   (is (= '(1 3 \a "abcde") (read-password-line "1-3 a: abcde"))))
@@ -180,12 +180,12 @@
 
 (defn hgt-test
   [input]
-  (let [mtc (re-matches #"(\d*)(cm|in)" input)]
-    (if (not mtc)
+  (let [[full val unit] (re-matches #"(\d*)(cm|in)" input)]
+    (if (not full)
       false
-      (if (= (nth mtc 2) "cm")
-        (<= 150 (Integer/parseInt (second mtc)) 193)
-        (<= 59 (Integer/parseInt (second mtc)) 76)))))
+      (if (= unit "cm")
+        (<= 150 (Integer/parseInt val) 193)
+        (<= 59 (Integer/parseInt val) 76)))))
 
 (def ecl-vals #{"amb" "blu" "brn" "gry" "grn" "hzl" "oth"})
 
