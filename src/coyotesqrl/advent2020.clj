@@ -250,42 +250,39 @@
 ; ************
 ; Day 5
 ; ************
+(comment
+  "Possible functions needed for day 6 if it extends on day 5"
+  (defn get-plane-row
+    [code]
+    (bit-shift-right code 3))
+  (defn get-plane-aisle
+    [code]
+    (bit-and 7 code)))
+
 (defn boarding-pass->seat
   [bp]
-  (list (-> (subs bp 0 7) (str/replace #"F" "0") (str/replace #"B" "1") (Integer/parseInt 2))
-        (-> (subs bp 7) (str/replace #"L" "0") (str/replace #"R" "1") (Integer/parseInt 2))))
+  (as-> (seq bp) v
+        (map {\F \0 \B \1 \L \0 \R \1} v)
+        (apply str v)
+        (Integer/parseInt v 2)))
 
 (def all-seats
-  (->> (for [row (range 0 128) col (range 0 8)]
-         [row col])
-       (map list)
-       (map flatten)
-       set))
-
-(defn input->seat-ids
-  [input]
-  (->> (map boarding-pass->seat input)
-       (map #(+ (second %) (* 8 (first %))))))
+  (set (for [code (range 0 1031)]
+         code)))
 
 (defn advent-5-1
   [input]
   (->> (read-input input)
-       input->seat-ids
+       (map boarding-pass->seat)
        (apply max)))
 
 (defn advent-5-2
   [input]
   (let [input (read-input input)
-        input-seat-ids (input->seat-ids input)
-        plus-one-seat-ids (set (map inc input-seat-ids))
-        minus-one-seat-ids (set (map dec input-seat-ids))]
-    (->> (map boarding-pass->seat input)
-         set
-         (difference all-seats)
-         (map #(+ (second %) (* 8 (first %))))
-         (filter #(contains? plus-one-seat-ids %))
-         (filter #(contains? minus-one-seat-ids %)))))
-
+        assigned (set (map boarding-pass->seat input))
+        missing (difference all-seats assigned)]
+    (first (filter #(and (contains? assigned (inc %))
+                         (contains? assigned (dec %))) missing))))
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
