@@ -250,7 +250,41 @@
 ; ************
 ; Day 5
 ; ************
+(defn boarding-pass->seat
+  [bp]
+  (list (-> (subs bp 0 7) (str/replace #"F" "0") (str/replace #"B" "1") (Integer/parseInt 2))
+        (-> (subs bp 7) (str/replace #"L" "0") (str/replace #"R" "1") (Integer/parseInt 2))))
 
+(def all-seats
+  (->> (for [row (range 0 128) col (range 0 8)]
+         [row col])
+       (map list)
+       (map flatten)
+       set))
+
+(defn input->seat-ids
+  [input]
+  (->> (map boarding-pass->seat input)
+       (map #(+ (second %) (* 8 (first %))))))
+
+(defn advent-5-1
+  [input]
+  (->> (read-input input)
+       input->seat-ids
+       (apply max)))
+
+(defn advent-5-2
+  [input]
+  (let [input (read-input input)
+        input-seat-ids (input->seat-ids input)
+        plus-one-seat-ids (set (map inc input-seat-ids))
+        minus-one-seat-ids (set (map dec input-seat-ids))]
+    (->> (map boarding-pass->seat input)
+         set
+         (difference all-seats)
+         (map #(+ (second %) (* 8 (first %))))
+         (filter #(contains? plus-one-seat-ids %))
+         (filter #(contains? minus-one-seat-ids %)))))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -261,4 +295,6 @@
   (advent-3 [[1 1] [3 1] [5 1] [7 1] [1 2]] "day3.txt")
   (advent-4 "day4.txt" :coyotesqrl-p1/passport)
   (advent-4 "day4.txt" :coyotesqrl-p2/passport)
+  (advent-5-1 "day5.txt")
+  (advent-5-2 "day5.txt")
   )
