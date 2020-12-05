@@ -1,10 +1,11 @@
-(ns advent2020
+(ns coyotesqrl.advent2020
   (:require [clojure.math.combinatorics :as comb]
             [clojure.test :refer :all]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.set :refer [difference]]
-            [clojure.math.numeric-tower :as math]))
+            [clojure.math.numeric-tower :as math]
+            [clojure.spec.alpha :as s]))
 
 ;
 ; Common functions. Functions here will be generally useful for all/many advent puzzles
@@ -17,7 +18,7 @@
        line-seq))
 
 (defn -main []
-  (run-tests 'advent2020))
+  (run-tests 'coyotesqrl.advent2020))
 
 ; ************
 ; Day 1
@@ -158,7 +159,7 @@
         (->> (str/split l #"\s")
              (map #(str/split % #"[:]"))
              (apply map vector))]
-    (zipmap ks vs)))
+    (zipmap (map keyword ks) vs)))
 
 (defn input->passport
   [input]
@@ -171,32 +172,54 @@
           '({})
           input))
 
-(defn year-test
+(defn year-in-range?
   [min max input]
-  (if (reduce (fn [acc val] (and acc (Character/isDigit ^char val))) true input)
+  (if (re-matches #"\d+" input)
     (as-> (Integer/parseInt input) yr
           (<= min yr max))
     false))
 
-(defn hgt-test
+(defn hgt-in-range?
   [input]
   (when-let [[_ val unit] (re-matches #"(\d*)(cm|in)" input)]
     (if (= unit "cm")
       (<= 150 (Integer/parseInt val) 193)
       (<= 59 (Integer/parseInt val) 76))))
 
-(def ecl-vals #{"amb" "blu" "brn" "gry" "grn" "hzl" "oth"})
+;
+; Doubling up the key specs and using unqualified keys in my two map specs
+; to allow for the two different sets of validation rules (puzzle #1 vs puzzle #2)
+;
+(s/def :coyotesqrl-p1/byr string?)
+(s/def :coyotesqrl-p1/iyr string?)
+(s/def :coyotesqrl-p1/eyr string?)
+(s/def :coyotesqrl-p1/hgt string?)
+(s/def :coyotesqrl-p1/hcl string?)
+(s/def :coyotesqrl-p1/ecl string?)
+(s/def :coyotesqrl-p1/pid string?)
+(s/def :coyotesqrl-p1/cid string?)
 
-(def passport-req-flds {"byr" (fn [d] (->> (get d "byr") (year-test 1920 2002)))
-                        "iyr" (fn [d] (->> (get d "iyr") (year-test 2010 2020)))
-                        "eyr" (fn [d] (->> (get d "eyr") (year-test 2020 2030)))
-                        "hgt" (fn [d] (->> (get d "hgt") hgt-test))
-                        "hcl" (fn [d] (->> (get d "hcl") (re-matches #"#[0-9a-f]{6}")))
-                        "ecl" (fn [d] (->> (get d "ecl") (contains? ecl-vals)))
-                        "pid" (fn [d] (->> (get d "pid") (re-matches #"\d{9}")))})
+(s/def :coyotesqrl-p2/byr #(year-in-range? 1920 2002 %))
+(s/def :coyotesqrl-p2/iyr #(year-in-range? 2010 2020 %))
+(s/def :coyotesqrl-p2/eyr #(year-in-range? 2020 2030 %))
+(s/def :coyotesqrl-p2/hgt hgt-in-range?)
+(s/def :coyotesqrl-p2/hcl #(re-matches #"#[0-9a-f]{6}" %))
+(s/def :coyotesqrl-p2/ecl #(contains? #{"amb" "blu" "brn" "gry" "grn" "hzl" "oth"} %))
+(s/def :coyotesqrl-p2/pid #(re-matches #"\d{9}" %))
+(s/def :coyotesqrl-p2/cid string?)
 
-(deftest test-year-test
-  (are [min max input test-fn] (test-fn (year-test min max input))
+(s/def :coyotesqrl-p1/passport (s/keys :req-un [:coyotesqrl-p1/byr :coyotesqrl-p1/iyr :coyotesqrl-p1/eyr
+                                                :coyotesqrl-p1/hgt :coyotesqrl-p1/hcl :coyotesqrl-p1/ecl
+                                                :coyotesqrl-p1/pid]
+                                       :opt-un [:coyotesqrl-p1/cid]))
+
+(s/def :coyotesqrl-p2/passport (s/keys :req-un [:coyotesqrl-p2/byr :coyotesqrl-p2/iyr :coyotesqrl-p2/eyr
+                                                :coyotesqrl-p2/hgt :coyotesqrl-p2/hcl :coyotesqrl-p2/ecl
+                                                :coyotesqrl-p2/pid]
+                                       :opt-un [:coyotesqrl-p2/cid]))
+
+(deftest test-year-in-range?
+  (are [min max input test-fn] (test-fn (year-in-range? min max input))
                                1920 2000 "1950" true?
                                1920 2000 "2950" not
                                1920 2000 "1920" true?
@@ -204,8 +227,8 @@
                                1920 2000 "1919" not
                                1920 2000 "195a" not))
 
-(deftest test-hgt-test
-  (are [input test-fn] (test-fn (hgt-test input))
+(deftest test-hgt-in-range?
+  (are [input test-fn] (test-fn (hgt-in-range? input))
                        "150cm" true?
                        "193cm" true?
                        "149cm" not
@@ -217,36 +240,12 @@
                        "70xy" not
                        "70" not))
 
-(def test-passport-in '({"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; good
-                        {"byr" "1871" "iyr" "2020" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad byr
-                        {"byr" "1971" "iyr" "2030" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad iyr
-                        {"byr" "1971" "iyr" "2020" "eyr" "2019" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad eyr
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "72in" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; good
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "295cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad hgt
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "193xy" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad hgt
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "12in" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"} ; bad hgt
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "72in" "hcl" "#95f96x" "ecl" "brn" "pid" "719337690"} ; bad hcl
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "72in" "hcl" "#95f96b" "ecl" "brnn" "pid" "719337690"} ; bad ecl
-                        {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "72in" "hcl" "#95f96b" "ecl" "brn" "pid" "7690"})) ; bad pid
-
-(def test-passport-out '({"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "193cm" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"}
-                         {"byr" "1971" "iyr" "2020" "eyr" "2024" "hgt" "72in" "hcl" "#95f96b" "ecl" "brn" "pid" "719337690"}))
-
-(deftest test-passport-filtering
-  (is (= (filter (apply every-pred (vals passport-req-flds)) test-passport-in) test-passport-out)))
-
 (defn advent-4
-  ([input] (advent-4 {} input))
-  ([secondary-filters input]
-   (let [secondary-filters
-         (if (empty? secondary-filters)
-           (fn [coll] coll)
-           (fn [coll] (filter (apply every-pred (vals secondary-filters)) coll)))]
-     (->> (read-input input)
-          input->passport
-          (filter #(empty? (difference (set (keys passport-req-flds)) (set (keys %)))))
-          secondary-filters
-          count))))
+  [input spec]
+  (->> (read-input input)
+       input->passport
+       (filter #(s/valid? spec %))
+       count))
 
 ; ************
 ; Day 5
@@ -260,6 +259,6 @@
   (advent-2 password-rule-match-2 "day2.txt")
   (advent-3 [[3 1]] "day3.txt")
   (advent-3 [[1 1] [3 1] [5 1] [7 1] [1 2]] "day3.txt")
-  (advent-4 "day4.txt")
-  (advent-4 passport-req-flds "day4.txt")
+  (advent-4 "day4.txt" :coyotesqrl-p1/passport)
+  (advent-4 "day4.txt" :coyotesqrl-p2/passport)
   )
