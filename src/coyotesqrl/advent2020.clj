@@ -17,11 +17,6 @@
        io/reader
        line-seq))
 
-(defn sum
-  [coll]
-  "Returns the sum of a collection of numerics"
-  (reduce #(+ %1 %2) coll))
-
 (defn -main []
   (run-tests 'coyotesqrl.advent2020))
 
@@ -292,12 +287,22 @@
 ; ************
 ; Day 6
 ; ************
+(comment
+  ; Day six ugly as usual. Would have improved solution had I realized
+  (set "abc")
+  ; decomposes the string to a set of characters.
+  ; Would also have helped had I thought to use reduce more, as opposed to
+  ; my endless stream of maps and applies.
+  )
+
+
+
 (defn customs-count-any
   [d]
   (->> (map #(apply str %) d)
        (map #(set (seq %)))
        (map count)
-       sum))
+       (reduce +)))
 
 (defn customs-count-all
   [d]
@@ -305,7 +310,7 @@
        (map #(map set %))
        (map #(apply intersection %))
        (map count)
-       sum))
+       (reduce +)))
 
 (defn advent-6
   [cnt-fn input]
