@@ -3,7 +3,7 @@
             [clojure.test :refer :all]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.set :refer [difference]]
+            [clojure.set :refer [difference intersection]]
             [clojure.math.numeric-tower :as math]
             [clojure.spec.alpha :as s]))
 
@@ -16,6 +16,11 @@
        io/resource
        io/reader
        line-seq))
+
+(defn sum
+  [coll]
+  "Returns the sum of a collection of numerics"
+  (reduce #(+ %1 %2) coll))
 
 (defn -main []
   (run-tests 'coyotesqrl.advent2020))
@@ -283,6 +288,33 @@
         missing (difference all-seats assigned)]
     (first (filter #(and (contains? assigned (inc %))
                          (contains? assigned (dec %))) missing))))
+
+; ************
+; Day 6
+; ************
+(defn customs-count-any
+  [d]
+  (->> (map #(apply str %) d)
+       (map #(set (seq %)))
+       (map count)
+       sum))
+
+(defn customs-count-all
+  [d]
+  (->> (map #(map (fn [param1] (seq param1)) %) d)
+       (map #(map set %))
+       (map #(apply intersection %))
+       (map count)
+       sum))
+
+(defn advent-6
+  [cnt-fn input]
+  (as-> (io/resource input) d
+        (slurp d)
+        (str/split d #"(\n){2}")
+        (map #(str/split % #"\n") d)
+        (cnt-fn d)))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -294,4 +326,6 @@
   (advent-4 "day4.txt" :coyotesqrl-p2/passport)
   (advent-5-1 "day5.txt")
   (advent-5-2 "day5.txt")
+  (advent-6 customs-count-any "day6.txt")
+  (advent-6 customs-count-all "day6.txt")
   )
