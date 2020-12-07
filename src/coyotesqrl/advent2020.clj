@@ -3,19 +3,24 @@
             [clojure.test :refer :all]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.set :refer [difference intersection]]
+            [clojure.set :refer [difference intersection union]]
             [clojure.math.numeric-tower :as math]
             [clojure.spec.alpha :as s]))
 
 ;
 ; Common functions. Functions here will be generally useful for all/many advent puzzles
 ;
-(defn read-input
+(defn input->seq
   [filename]
-  (->> filename
-       io/resource
+  (->> (io/resource filename)
        io/reader
        line-seq))
+
+(defn input->groups
+  [input]
+  (as-> (io/resource input) d
+        (slurp d)
+        (str/split d #"(\n){2}")))
 
 (defn -main []
   (run-tests 'coyotesqrl.advent2020))
@@ -39,7 +44,7 @@
   "Extract `num-addends` addends from expense report list that together sum to 2020, then
   multiplies them together."
   [num-addends input]
-  (->> (read-input input)
+  (->> (input->seq input)
        (map #(Integer/parseInt %))
        (extract-addends num-addends 2020)
        (apply *)))
@@ -98,7 +103,7 @@
   "Parses each line of the input and counts passwords that are valid given the `pw-match-fn`
   rule function."
   [pw-match-fn input]
-  (->> (read-input input)
+  (->> (input->seq input)
        (filter #(pw-match-fn (read-password-line %)))
        count))
 
@@ -141,11 +146,11 @@
                        31 ".#...#....#...#.#..........#.#." not))
 
 (deftest test-toboggan-collisions
-  (is (= '(24 4) (count-toboggan-collisions 3 2 (read-input "test-day3.txt")))))
+  (is (= '(24 4) (count-toboggan-collisions 3 2 (input->seq "test-day3.txt")))))
 
 (defn advent-3
   [steps input]
-  (let [input (read-input input)]
+  (let [input (input->seq input)]
     (->> (map #(count-toboggan-collisions (first %) (second %) input) steps)
          (map second)
          (apply *))))
@@ -242,7 +247,7 @@
 
 (defn advent-4
   [input spec]
-  (->> (read-input input)
+  (->> (input->seq input)
        input->passport
        (filter #(s/valid? spec %))
        count))
@@ -272,13 +277,13 @@
 
 (defn advent-5-1
   [input]
-  (->> (read-input input)
+  (->> (input->seq input)
        (map boarding-pass->seat)
        (apply max)))
 
 (defn advent-5-2
   [input]
-  (let [input (read-input input)
+  (let [input (input->seq input)
         assigned (set (map boarding-pass->seat input))
         missing (difference all-seats assigned)]
     (first (filter #(and (contains? assigned (inc %))
@@ -294,8 +299,6 @@
   ; Would also have helped had I thought to use reduce more, as opposed to
   ; my endless stream of maps and applies.
   )
-
-
 
 (defn customs-count-any
   [d]
@@ -314,11 +317,55 @@
 
 (defn advent-6
   [cnt-fn input]
-  (as-> (io/resource input) d
-        (slurp d)
-        (str/split d #"(\n){2}")
-        (map #(str/split % #"\n") d)
-        (cnt-fn d)))
+  (->> (input->groups input)
+       (map #(str/split % #"\n"))
+       (cnt-fn)))
+
+; ************
+; Day 7
+; ************
+
+(defn line->bag-rules
+  [l]
+  (let [[k v] (str/split l #" bags contain ")
+        v (->> (str/split v #" bag[s]?[,|.]\s?")
+               (map #(re-matches #"(\d*) (.*)" %))
+               (remove nil?)
+               (map (fn [[_ v k]] {k (Integer/parseInt v)}))
+               (into {}))]
+    {k v}))
+
+(defn input->bag-rules
+  [input]
+  (->> (input->seq input)
+       (map line->bag-rules)
+       (into {})))
+
+(defn count-container-bags
+  [bag-def input]
+  (reduce-kv (fn [acc k v]
+               (if (and
+                     (not-empty v)
+                     (contains? (set (keys v)) bag-def))
+                 (union acc #{k} (count-container-bags k input))
+                 acc))
+             #{} input))
+
+(defn how-many-bags
+  [bag-def input]
+  (->> (get input bag-def)
+       (reduce-kv #(+ %1 %3 (* %3 (how-many-bags %2 input))) 0)))
+
+(defn advent-7-1
+  [bag-def input]
+  (->> (input->bag-rules input)
+       (count-container-bags bag-def)
+       count))
+
+(defn advent-7-2
+  [bag-def input]
+  (->> (input->bag-rules input)
+       (how-many-bags bag-def)))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -333,4 +380,6 @@
   (advent-5-2 "day5.txt")
   (advent-6 customs-count-any "day6.txt")
   (advent-6 customs-count-all "day6.txt")
+  (advent-7-1 "shiny gold" "day7.txt")
+  (advent-7-2 "shiny gold" "day7.txt")
   )
