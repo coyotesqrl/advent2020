@@ -344,9 +344,7 @@
 (defn count-container-bags
   [bag-def input]
   (reduce-kv (fn [acc k v]
-               (if (and
-                     (not-empty v)
-                     (contains? (set (keys v)) bag-def))
+               (if (contains? (set (keys v)) bag-def)
                  (union acc #{k} (count-container-bags k input))
                  acc))
              #{} input))
