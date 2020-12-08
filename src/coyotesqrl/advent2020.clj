@@ -365,6 +365,103 @@
   (->> (input->bag-rules input)
        (how-many-bags bag-def)))
 
+; ************
+; Day 8
+; ************
+
+(defn process-game-line
+  "Processes a single instruction, updating the accumulator as appropriate
+  and returning a tuple of it, and the next index to be processed."
+  [line idx [visited sum]]
+  (let [[_ inst op d] (re-matches #"([^\s]*) ([+|-])(\d*)" line)
+        op (resolve (symbol op))
+        d (Integer/parseInt d)
+        visited (conj visited idx)]
+    (cond
+      (= inst "acc") [(inc idx) [visited (op sum d)]]
+      (= inst "jmp") [(op idx d) [visited sum]]
+      :else [(inc idx) [visited sum]])))
+
+(defn run-game
+  [input]
+  (let [last-idx (dec (count input))]
+    (loop [[next-idx acc] [0 [#{} 0]]]
+      (if (or (= next-idx last-idx) (contains? (first acc) next-idx))
+        (if (= next-idx last-idx)
+          (->> (process-game-line (get input next-idx) next-idx acc) second second)
+          (second acc))
+        (recur (process-game-line (get input next-idx) next-idx acc))))))
+
+(defn filter-inst-indexes
+  [input]
+  (->> (keep-indexed
+         #(when (or (str/starts-with? %2 "nop") (str/starts-with? %2 "jmp"))
+            %1)
+         input)
+       (into [])))
+
+(defn swap-instr
+  [input swap-idx]
+  (let [line (get input swap-idx)]
+    (->>
+      (if (str/starts-with? line "nop")
+        (str/replace line #"nop" "jmp")
+        (str/replace line #"jmp" "nop"))
+      (assoc input swap-idx))))
+
+(defn walk-instr
+  [input]
+  (let [last-idx (dec (count input))
+        swap (filter-inst-indexes input)]
+    (loop [test-input input
+           test-idx (first swap)
+           test-swap swap
+           next-idx 0
+           visited []]
+      (cond
+        (= next-idx last-idx) test-idx
+        (contains? visited next-idx) (let [[x & xs] test-swap]
+                                       (recur (swap-instr input x) x xs 0 []))
+        :else (let [[next [visited] _] (process-game-line (get test-input next-idx) next-idx [visited 0])]
+                (recur test-input test-idx test-swap next visited))))))
+
+(defn advent-8-1
+  [input]
+  (->> (input->seq input)
+       vec
+       run-game))
+
+(defn advent-8-2
+  [input]
+  (let [input (vec (input->seq input))
+        bad-inst (walk-instr input)]
+    (->> (swap-instr input bad-inst)
+         run-game)))
+
+(deftest test-process-game-line
+  (are [exp-result line idx acc]
+    (= exp-result (process-game-line line idx acc))
+    [7 [#{0 6} 3]] "nop +4" 6 [#{0} 3]
+    [3 [#{0 1 8 6} 3]] "jmp -3" 6 [#{0 1 8} 3]
+    [7 [#{0 4 5 6} 2]] "acc -2" 6 [#{0 4 5} 4]))
+
+(deftest test-swap-instr
+  (is (= ["acc +1" "jmp +2" "nop +3" "acc -1"]
+         (swap-instr ["acc +1" "jmp +2" "jmp +3" "acc -1"] 2))))
+
+(deftest test-filter-instructions
+  (is (= [1 2] (filter-inst-indexes ["acc +1" "jmp +2" "nop +3" "acc -1"]))))
+
+(deftest test-8-1
+  (is (= 5 (advent-8-1 "test-day8.txt"))))
+
+(deftest test-bad-instr
+  (is (= 7 (->> (input->seq "test-day8.txt") vec walk-instr))))
+
+(deftest test-8-2
+  (is (= 8 (advent-8-2 "test-day8.txt"))))
+
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -380,4 +477,6 @@
   (advent-6 customs-count-all "day6.txt")
   (advent-7-1 "shiny gold" "day7.txt")
   (advent-7-2 "shiny gold" "day7.txt")
+  (advent-8-1 "day8.txt")
+  (advent-8-2 "day8.txt")
   )
