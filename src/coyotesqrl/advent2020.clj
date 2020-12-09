@@ -461,6 +461,91 @@
 (deftest test-8-2
   (is (= 8 (advent-8-2 "test-day8.txt"))))
 
+; ************
+; Day 9
+; ************
+
+(defn xmas-window
+  [input]
+  (let [input (vec input)]
+    (reduce-kv (fn [acc k v] (conj acc [v (vec (map #(+ % v) (drop (inc k) input)))]))
+               []
+               input)))
+
+(defn update-window
+  [window x]
+  (as-> (rest window) d
+        (map #(vector (first %) (conj (second %) (+ x (first %)))) d)
+        (concat d [[x []]])
+        (vec d)))
+
+(defn non-sum
+  [wind-len input]
+  (loop [input (vec input)
+         window (xmas-window (take wind-len input))]
+    (let [x (get input wind-len)
+          val-sums (flatten (map second window))]
+      (if (some #(= x %) val-sums)
+        (recur (vec (rest input)) (update-window window x))
+        x))))
+
+(defn xmas-contiguous-sum
+  [input exp-sum]
+  (reduce (fn f [a v]
+            (let [[sum coll] a]
+              (if (>= (+ sum v) exp-sum)
+                (if (= (+ sum v) exp-sum)
+                  (reduced (conj coll v))
+                  (reduced false))
+                [(+ sum v) (conj coll v)])))
+          [0 []]
+          input))
+
+(defn xmas-contiguous-sum-recur
+  [input exp-sum]
+  "Loops through `input` collection until it finds a contiguous set of values that
+  sum to the `exp-sum`.
+  If found, returns the collection; otherwise, nil."
+  (loop [input input]
+    (let [result (xmas-contiguous-sum input exp-sum)]
+      (if result
+        (if (some vector? result)
+          nil
+          result)
+        (recur (rest input))))))
+
+(defn advent-9-1
+  [win-len input]
+  (->> (input->seq input)
+       (map #(Long/parseLong %))
+       (non-sum win-len)))
+
+(defn advent-9-2
+  [win-len input]
+  (let [input (->> (input->seq input) (map #(Long/parseLong %)) vec)]
+    (as-> (non-sum win-len input) d
+          (xmas-contiguous-sum-recur input d)
+          (+ (apply min d) (apply max d)))))
+
+(deftest test-9-1
+  (is (= 127 (non-sum 5 (map #(Long/parseLong %) (input->seq "test-day9.txt"))))))
+
+(deftest test-contiguous-sum
+  (are [result coll sum] (= result (xmas-contiguous-sum coll sum))
+                         false [19 2 3 4 5] 9
+                         [2 3 4] [2 3 4 5] 9
+                         [4 5] [4 5] 9))
+
+(deftest test-contiguous-sum-recur
+  (are [result coll sum] (= result (xmas-contiguous-sum-recur coll sum))
+                         [2 3 4] [19 2 3 4 5] 9
+                         [2 3 4] [1 2 3 4 5] 9
+                         [3 4 5] [19 2 3 4 5] 12
+                         nil [1 2 3] 100))
+
+; ************
+; Day 10
+; ************
 
 (comment
   (advent-1 2 "day1.txt")
@@ -479,4 +564,6 @@
   (advent-7-2 "shiny gold" "day7.txt")
   (advent-8-1 "day8.txt")
   (advent-8-2 "day8.txt")
+  (advent-9-1 25 "day9.txt")
+  (advent-9-2 25 "day9.txt")
   )
