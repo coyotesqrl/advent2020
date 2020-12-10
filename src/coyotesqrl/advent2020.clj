@@ -5,7 +5,8 @@
             [clojure.string :as str]
             [clojure.set :refer [difference intersection union]]
             [clojure.math.numeric-tower :as math]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [loom.graph :as g]))
 
 ;
 ; Common functions. Functions here will be generally useful for all/many advent puzzles
@@ -546,6 +547,66 @@
 ; ************
 ; Day 10
 ; ************
+(defn count-all-adapters
+  [input]
+  (let [inc-fn #(assoc %1 %2 (inc (%2 %1)))]
+    (->>
+      (map-indexed #(if (= 0 %1) 0 (- %2 (get input (dec %1)))) input)
+      (filter #(< 0 %))
+      (reduce #(if (= 1 %2) (inc-fn %1 :1) (inc-fn %1 :3))
+              {:1 1 :3 1}))))
+
+(defn build-graph
+  "Builds a DAG of the inputs. Each node includes its descendent paths as tuples, with
+  the first value being the adjacent node and the second the target node. This is to aid
+  in determining when a node is the target."
+  [input]
+  (let [graph (->> (for [x input
+                         y input
+                         :when (<= 1 (- y x) 3)]
+                     [x y])
+                   (apply g/digraph))
+        target (apply max input)
+        succ-fn (g/successors graph)]
+    (reduce (fn [a v] (assoc a v (map #(vector % target) (succ-fn v))))
+            {}
+            input)))
+
+(defn count-node-paths
+  [acc entry]
+  (let [foobar (map #(let [[a b] %]
+                       (if (= a b) 1 (get acc a))) entry)]
+    (apply + (flatten foobar))))
+
+(defn count-all-paths
+  [mp]
+  (let [mp (into (sorted-map-by >) mp)]
+    (-> (reduce-kv #(if (empty? %3)
+                      %1
+                      (assoc %1 %2 (count-node-paths %1 %3)))
+                   {}
+                   mp)
+        (get 0))))
+
+(defn advent-10-1
+  [input]
+  (->> (input->seq input)
+       (map #(Long/parseLong %))
+       sort
+       vec
+       count-all-adapters
+       vals
+       (reduce *)))
+
+(defn advent-10-2
+  [input]
+  (as-> (input->seq input) d
+        (map #(Long/parseLong %) d)
+        (conj d 0 (+ 3 (apply max d)))
+        (sort d)
+        (vec d)
+        (build-graph d)
+        (count-all-paths d)))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -566,4 +627,6 @@
   (advent-8-2 "day8.txt")
   (advent-9-1 25 "day9.txt")
   (advent-9-2 25 "day9.txt")
+  (advent-10-1 "day10.txt")
+  (advent-10-2 "day10.txt")
   )
