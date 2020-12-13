@@ -3,7 +3,7 @@
             [clojure.test :refer :all]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.set :refer [difference intersection union]]
+            [clojure.set :refer [difference intersection union map-invert]]
             [clojure.math.numeric-tower :as math]
             [clojure.spec.alpha :as s]
             [loom.graph :as g]))
@@ -705,6 +705,66 @@
 ; ************
 ; Day 12
 ; ************
+(def simple-ferry-moves {:E (fn [[x y] d m] [[(+ x m) y] d])
+                         :S (fn [[x y] d m] [[x (- y m)] d])
+                         :W (fn [[x y] d m] [[(- x m) y] d])
+                         :N (fn [[x y] d m] [[x (+ y m)] d])})
+
+(defn turn-ferry
+  [d turn deg]
+  (let [x {:E 0 :S 90 :W 180 :N 270}
+        y (map-invert x)
+        f (if (= turn :R) + -)]
+    (get y (-> (d x)
+               (f deg)
+               (mod 360)))))
+
+(defn move-ferry
+  [[[x y] d] instr]
+  (let [inst-key (->> (first instr) str keyword)
+        inst-fn (inst-key simple-ferry-moves)
+        m (->> (rest instr) (apply str) Integer/parseInt)]
+    (cond inst-fn (inst-fn [x y] d m)
+          (= inst-key :F) (((keyword d) simple-ferry-moves) [x y] d m)
+          :else [[x y] (turn-ferry d inst-key m)])))
+
+(defn turn-waypoint
+  [[wx wy] turn deg]
+  (let [deg (if (= turn :L) (* -1 deg) deg)
+        turns (/ (mod deg 360) 90)]
+    (reduce (fn [[a b] _]
+              [b (* -1 a)])
+              [wx wy]
+              (range turns))))
+
+(def waypoint-ferry-moves {:E (fn [[x y] [wx wy] m] [[x y] [(+ wx m) wy]])
+                           :S (fn [[x y] [wx wy] m] [[x y] [wx (- wy m)]])
+                           :W (fn [[x y] [wx wy] m] [[x y] [(- wx m) wy]])
+                           :N (fn [[x y] [wx wy] m] [[x y] [wx (+ wy m)]])
+                           :R (fn [[x y] [wx wy] m] [[x y] (turn-waypoint [wx wy] :R m)])
+                           :L (fn [[x y] [wx wy] m] [[x y] (turn-waypoint [wx wy] :L m)])
+                           :F (fn [[x y] [wx wy] m] [[(+ x (* m wx)) (+ y (* m wy))] [wx wy]])})
+
+(defn debug [x] (println x) x)
+(defn move-with-waypoint
+  [[[x y] [wx wy]] instr]
+  (debug (str [x y] [wx wy] instr))
+  (let [inst-key (->> (first instr) str keyword)
+        inst-fn (inst-key waypoint-ferry-moves)
+        m (->> (rest instr) (apply str) Integer/parseInt)]
+    (inst-fn [x y] [wx wy] m)))
+
+(defn advent-12-1
+  [input]
+  (let [init [[0 0] :E]]
+    (->> (input->seq input)
+         (reduce #(move-ferry %1 %2) init))))
+
+(defn advent-12-2
+  [input]
+  (let [init [[0 0] [10 1]]]
+    (->> (input->seq input)
+         (reduce #(move-with-waypoint %1 %2) init))))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -729,4 +789,6 @@
   (advent-10-2 "day10.txt")
   (advent-11 4 get-next-neighbors "day11.txt")
   (advent-11 5 get-all-neighbor-seats "day11.txt")
+  (advent-12-1 "day12.txt")
+  (advent-12-2 "day12.txt")
   )
