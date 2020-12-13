@@ -608,6 +608,104 @@
         (build-graph d)
         (count-all-paths d)))
 
+; ************
+; Day 11
+; ************
+(defn seat-key
+  [r c]
+  (keyword (str r "-" c)))
+
+(defn get-next-neighbors
+  [_ row col]
+  (->> (for [x [(dec row) row (inc row)]
+             y [(dec col) col (inc col)]]
+         [x y])
+       (remove #(= [row col] %))))
+
+(def neighbor-walk-fns [(fn [r c] [r (dec c)])
+                        (fn [r c] [r (inc c)])
+                        (fn [r c] [(dec r) c])
+                        (fn [r c] [(inc r) c])
+                        (fn [r c] [(dec r) (dec c)])
+                        (fn [r c] [(dec r) (inc c)])
+                        (fn [r c] [(inc r) (dec c)])
+                        (fn [r c] [(inc r) (inc c)])])
+
+(defn get-all-neighbor-seats
+  "Gets the collection of visible neighbor seats in the eight directions."
+  [grid row col]
+  (vec (for [neigh-fn neighbor-walk-fns]
+         (loop [[row col] (neigh-fn row col)]
+           (cond (< row 0) nil
+                 (< col 0) nil
+                 (>= row (count grid)) nil
+                 (>= col (count (get grid 0))) nil
+                 (= \# (get (get grid row) col)) [row col]
+                 (= \L (get (get grid row) col)) [row col]
+                 (= \. (get (get grid row) col)) (recur (neigh-fn row col)))))))
+
+(defn count-occupied-neighbors
+  [grid neighbors]
+  (->>
+    (for [[r c] neighbors]
+      (get (get grid r) c))
+    (filter #(= \# %))
+    count))
+
+(defn seatgrid-one-gen-one-row
+  [grid row-idx all-neighbors occmax]
+  (let [row (get grid row-idx)]
+    (->>
+      (for [c (range 0 (count row))
+            :let [seat (get row c)
+                  neigh-cnt (count-occupied-neighbors grid ((seat-key row-idx c) all-neighbors))]]
+        (let [x 1]
+          (cond (= seat \.) \.
+                (= seat \L) (if (= 0 neigh-cnt) \# \L)
+                (= seat \#) (if (<= occmax neigh-cnt) \L \#))
+          ))
+      (apply str)
+      )))
+
+(defn populate-neighbormap
+  "Populates the map of all neighbors for each seat in the grid. The provided
+  function takes three arguments, grid, row, and col."
+  [grid f]
+  (->>
+    (for [r (range 0 (count grid))]
+      (for [c (range 0 (count (get grid r)))]
+        [{(seat-key r c) (f grid r c)}]))
+    flatten
+    (into {})))
+
+(defn seatgrid-one-gen
+  [grid neighbors occmax]
+  (let [grid (vec grid)]
+    (reduce-kv (fn [a k _] (conj a (seatgrid-one-gen-one-row grid k neighbors occmax)))
+               [] grid)))
+
+(defn seatgrid-evolve
+  [occmax pop-fn grid]
+  (let [neighbors (populate-neighbormap grid pop-fn)]
+    (loop [prev-grid grid]
+      (let [grid (seatgrid-one-gen prev-grid neighbors occmax)]
+        (if (= grid prev-grid)
+          grid
+          (recur grid))))))
+
+(defn advent-11
+  [occmax pop-fn input]
+  (->> (input->seq input)
+       vec
+       (seatgrid-evolve occmax pop-fn)
+       (apply str)
+       frequencies
+       ))
+
+; ************
+; Day 12
+; ************
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -629,4 +727,6 @@
   (advent-9-2 25 "day9.txt")
   (advent-10-1 "day10.txt")
   (advent-10-2 "day10.txt")
+  (advent-11 4 get-next-neighbors "day11.txt")
+  (advent-11 5 get-all-neighbor-seats "day11.txt")
   )
