@@ -734,8 +734,8 @@
         turns (/ (mod deg 360) 90)]
     (reduce (fn [[a b] _]
               [b (* -1 a)])
-              [wx wy]
-              (range turns))))
+            [wx wy]
+            (range turns))))
 
 (def waypoint-ferry-moves {:E (fn [[x y] [wx wy] m] [[x y] [(+ wx m) wy]])
                            :S (fn [[x y] [wx wy] m] [[x y] [wx (- wy m)]])
@@ -745,10 +745,8 @@
                            :L (fn [[x y] [wx wy] m] [[x y] (turn-waypoint [wx wy] :L m)])
                            :F (fn [[x y] [wx wy] m] [[(+ x (* m wx)) (+ y (* m wy))] [wx wy]])})
 
-(defn debug [x] (println x) x)
 (defn move-with-waypoint
   [[[x y] [wx wy]] instr]
-  (debug (str [x y] [wx wy] instr))
   (let [inst-key (->> (first instr) str keyword)
         inst-fn (inst-key waypoint-ferry-moves)
         m (->> (rest instr) (apply str) Integer/parseInt)]
@@ -765,6 +763,68 @@
   (let [init [[0 0] [10 1]]]
     (->> (input->seq input)
          (reduce #(move-with-waypoint %1 %2) init))))
+
+; ************
+; Day 13
+; ************
+(defn shuttle-wait
+  [[time shuttles]]
+  (let [time (Integer/parseInt time)
+        shuttles (str/split shuttles #",")]
+    (->> (filter #(re-matches #"\d*" %) shuttles)
+         (map #(Integer/parseInt %))
+         (map #(vector (- % (mod time %)) %))
+         (sort-by first)
+         first
+         (apply *))))
+
+(defn solve-congruence
+  [a n]
+  (loop [i 1]
+    (if (= 0 (mod (- (* a i) 1) n))
+      i
+      (recur (inc i)))))
+
+(defn get-little-m
+  [coll idx [a b]]
+  (let [coll (vec coll)
+        factors (vec (map second coll))
+        l (subvec factors 0 idx)
+        r (subvec factors (inc idx))]
+    (as-> (concat l r) d
+          (apply * d)
+          (assoc {:a a} :m d)
+          (assoc d :y (solve-congruence (:m d) b))
+          (vals d)
+          (apply * d))))
+
+(defn get-chinese-rem
+  [coll]
+  (->> (reduce-kv (fn [a k v] (into a [(get-little-m coll k v)]))
+                  [] coll)
+       (reduce +)))
+
+(defn chinese-remainder
+  [[_ shuttles]]
+  (let [shuttles (->> (str/split shuttles #",")
+                      (map-indexed (fn [k v] [k v]))
+                      (filter (fn [[_ v]] (re-matches #"\d*" v)))
+                      (map (fn [[k v]] [k (bigint v)]))
+                      (map (fn [[k v]] [(- v k) v]))
+                      (sort-by first))
+        m (apply * (map second shuttles))
+        chinese-rem (get-chinese-rem (vec shuttles))]
+    (mod chinese-rem m)))
+
+(defn advent-13-1
+  [input]
+  (->> (input->seq input)
+       (shuttle-wait)))
+
+(defn advent-13-2
+  [input]
+  (->> (input->seq input)
+       (chinese-remainder)))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -791,4 +851,6 @@
   (advent-11 5 get-all-neighbor-seats "day11.txt")
   (advent-12-1 "day12.txt")
   (advent-12-2 "day12.txt")
+  (advent-13-1 "day13.txt")
+  (advent-13-2 "day13.txt")
   )
