@@ -826,6 +826,97 @@
   (->> (input->seq input)
        (chinese-remainder)))
 
+; ************
+; Day 14
+; ************
+(defn conj-floating-bit
+  [acc]
+  (let [data (:data acc)
+        x-cnt (/ (:x-cnt acc) 2)]
+    (->>
+      (for [x [\0 \1]]
+        (map #(conj % x) data))
+      (apply concat)
+      vec
+      (assoc {:x-cnt x-cnt} :data))))
+
+(defn pad-left
+  [coll pad n]
+  (-> (repeat n pad)
+      (cons coll)
+      flatten
+      vec))
+
+(defn apply-floating-bit
+  [mask input]
+  (let [input (->> (Integer/toString input 2) vec)
+        mask (->> (vec mask) (drop-while #(= \0 %)) vec)
+        input (if (>= (count input) (count mask))
+                input
+                (pad-left input \0 (- (count mask) (count input))))
+        mask (if (= (count mask) (count input))
+               mask
+               (pad-left mask \0 (- (count input) (count mask))))
+        x-cnt (math/expt 2 (count (filter #(= \X %) mask)))]
+    (->> (reduce-kv (fn [a k v] (cond (= \X (get mask k)) (conj-floating-bit a)
+                                      (= \1 (get mask k)) (assoc a :data (map #(conj % 1) (:data a)))
+                                      :else (assoc a :data (map #(conj % v) (:data a)))))
+                    {:x-cnt x-cnt :data [[]]}
+                    input)
+         :data
+         (map #(apply str %))
+         (map #(Long/parseLong % 2)))))
+
+(defn xstr->masks
+  [mask]
+  {:and-mask (-> (str/replace mask #"X" "1") (Long/parseLong 2))
+   :or-mask  (-> (str/replace mask #"X" "0") (Long/parseLong 2))
+   :x-mask   mask})
+
+(defn process-docking
+  [input]
+  (let [m-mask #"mask = (.*)$"
+        m-mem #"mem\[(\d*)\] = (\d*)$"]
+    (apply + (-> (reduce (fn [a v] (let [[mask? mask] (re-matches m-mask v)
+                                         [mem? loc val] (re-matches m-mem v)]
+                                     (cond mask? (into a (xstr->masks mask))
+                                           mem? (->> (Long/parseLong val)
+                                                     (bit-and (:and-mask a))
+                                                     (bit-or (:or-mask a))
+                                                     (assoc a loc)))))
+                         {} input)
+                 (dissoc :and-mask :or-mask :x-mask)
+                 vals))))
+
+(defn process-docking-v2
+  [input]
+  (let [m-mask #"mask = (.*)$"
+        m-mem #"mem\[(\d*)\] = (\d*)$"]
+    (as-> (reduce (fn [a v] (let [[mask? mask] (re-matches m-mask v)
+                                  [mem? loc val] (re-matches m-mem v)]
+                              (cond mask? (into a (xstr->masks mask))
+                                    mem? (as-> (Long/parseLong loc) d
+                                               (apply-floating-bit (:x-mask a) d)
+                                               (reduce #(assoc %1 %2 val) a d)))))
+                  {} input) d
+          (dissoc d :and-mask :or-mask :x-mask)
+          (vals d)
+          (map #(Integer/parseInt %) d)
+          (apply + d)
+          )))
+
+
+(defn advent-14-1
+  [input]
+  (->> (input->seq input)
+       process-docking
+       ))
+
+(defn advent-14-2
+  [input]
+  (->> (input->seq input)
+       process-docking-v2))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -853,4 +944,6 @@
   (advent-12-2 "day12.txt")
   (advent-13-1 "day13.txt")
   (advent-13-2 "day13.txt")
+  (advent-14-1 "day14.txt")
+  (advent-14-2 "day14.txt")
   )
