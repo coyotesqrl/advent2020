@@ -917,6 +917,179 @@
   (->> (input->seq input)
        process-docking-v2))
 
+; ************
+; Day 15
+; ************
+(defn mem-append
+  [cache l n]
+  (let [prev (first l)
+        next-val (if (nil? prev)
+                   0
+                   (- n prev 1))
+        prev-entry (get cache next-val)
+        next-entry (if (nil? prev-entry)
+                     [nil n]
+                     [(second prev-entry) n])
+        cache (assoc cache next-val next-entry)]
+    [(inc n) cache next-entry]))
+
+(defn advent-15
+  [n input]
+  (let [cache (reduce-kv #(assoc %1 %3 [nil %2]) {} (vec input))
+        n (- n (count input))
+        end-n (+ (count input) n)]
+    (->>
+      (loop [n (count input)
+             cache cache
+             l (get cache (last input))]
+        (if (>= n end-n)
+          cache
+          (let [[x y z] (mem-append cache l n)] (recur x y z)))
+        )
+      (reduce-kv (fn [a k [_ v]] (if (> v (:max-idx a))
+                                   (assoc a :max-idx v :val k)
+                                   a))
+                 {:max-idx -1})
+      :val)))
+
+(deftest test-mem-game
+  "N.B. This improved solution is still slow, around 20-30 seconds for
+  each of the latter seven inputs."
+  (are [n input exp] (= exp (advent-15 n input))
+                     2020 '(0 3 6) 436
+                     2020 '(1 3 2) 1
+                     2020 '(2 1 3) 10
+                     2020 '(1 2 3) 27
+                     2020 '(2 3 1) 78
+                     2020 '(3 2 1) 438
+                     2020 '(3 1 2) 1836
+                     30000000 '(0 3 6) 175594
+                     30000000 '(1 3 2) 2578
+                     30000000 '(2 1 3) 3544142
+                     30000000 '(1 2 3) 261214
+                     30000000 '(2 3 1) 6895259
+                     30000000 '(3 2 1) 18
+                     30000000 '(3 1 2) 362))
+
+; ************
+; Day 16
+; ************
+(defn ticket-rules
+  [line]
+  (let [line-parse
+        (fn [l] (let [[_ rule x1 x2 x3 x4]
+                      (re-matches #"([^:]*):\s*(\d*)-(\d*)[^\d]*(\d*)-(\d*)" l)]
+                  {:field rule
+                   :r1    [(Integer/parseInt x1) (Integer/parseInt x2)]
+                   :r2    [(Integer/parseInt x3) (Integer/parseInt x4)]}))]
+    (->> (str/split line #"\n")
+         (map line-parse))))
+
+(defn read-tix
+  [line]
+  (as-> (str/split line #"\n") d
+        (rest d)
+        (map #(str/split % #",") d)
+        (map (fn [v] (map #(Integer/parseInt %) v)) d)))
+
+(defn read-tickets
+  [input]
+  (let [[r m n] (input->groups input)
+        rules (ticket-rules r)
+        my-tic (->> (read-tix m) first)
+        near-tix (read-tix n)]
+
+    {:r rules :m my-tic :n near-tix}))
+
+(defn rules->testfn
+  [rules]
+  (for [rule rules
+        :let [[ra1 ra2] (:r1 rule)
+              [rb1 rb2] (:r2 rule)]]
+    (fn [t] (or (<= ra1 t ra2) (<= rb1 t rb2)))))
+
+(defn rules->fieldfn
+  [rules]
+  (for [rule rules
+        :let [field (:field rule)
+              [ra1 ra2] (:r1 rule)
+              [rb1 rb2] (:r2 rule)]]
+    (fn [t] (if (or (<= ra1 t ra2) (<= rb1 t rb2))
+              field
+              nil))))
+
+(defn tix-scanning-err-rate
+  [input]
+  (let [rules (->> (rules->testfn (:r input)) (apply some-fn))
+        near-tix (:n input)]
+    (->> (map #(remove rules %) near-tix)
+         flatten
+         (apply +))))
+
+(defn discard-invalid-tix
+  [input]
+  (let [rule-cnt (count (:r input))
+        rules (->> (rules->testfn (:r input)) (apply some-fn))
+        near-tix (:n input)]
+    (->> (map #(filter rules %) near-tix)
+         (filter #(= (count %) rule-cnt)))))
+
+(defn clean-input
+  [input acc]
+  (->> (map (fn [[k v]] [k (apply disj v (map #(first (second %)) acc))]) input)
+       (remove #(empty? (second %)))))
+
+(defn remove-invalid-fields
+  [input]
+  (loop [input input
+         acc []]
+    (if (empty? input)
+      acc
+      (as-> (reduce (fn [a v] (if (= (count (second v)) 1)
+                                (conj a v)
+                                a))
+                    acc input) d
+            (recur (clean-input input d) d)))))
+
+(defn determine-tix-fields
+  [input prefix]
+  (let [rules (rules->fieldfn (:r input))
+        valid-tix (discard-invalid-tix input)]
+    (->>
+      (for [t valid-tix]
+        (reduce-kv (fn [ta tk tv]
+                     (reduce (fn [a v] (update a tk #(conj % (v tv))))
+                             ta rules))
+                   {} (vec t)))
+      (reduce (fn [a v]
+                (reduce-kv (fn [ar kr vr] (update ar kr #(conj % (set vr))))
+                           a v))
+              {})
+      (reduce-kv (fn [a k v] (assoc a k (apply intersection v))) {})
+
+      remove-invalid-fields
+      (map (fn [[k v]] [(first v) k]))
+      (filter #(str/starts-with? (first %) prefix))
+      (map second))))
+
+(defn sum-tix-field
+  [input fields]
+  (let [my-tix (vec (:m input))]
+    (->> (for [idx fields]
+           (get my-tix idx))
+         (apply *))))
+
+(defn advent-16-1
+  [input]
+  (->> (read-tickets input)
+       tix-scanning-err-rate))
+
+(defn advent-16-2
+  [input prefix]
+  (let [input (read-tickets input)
+        tix-fields (determine-tix-fields input prefix)]
+    (sum-tix-field input tix-fields)))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -946,4 +1119,8 @@
   (advent-13-2 "day13.txt")
   (advent-14-1 "day14.txt")
   (advent-14-2 "day14.txt")
+  (advent-15 2020 '(7 14 0 17 11 1 2))
+  (advent-15 30000000 '(7 14 0 17 11 1 2))
+  (advent-16-1 "day16.txt")
+  (advent-16-2 "day16.txt" "departure")
   )
