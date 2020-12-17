@@ -1089,28 +1089,19 @@
 ; Day 17
 ; ************
 (defn input->conway
-  [input]
-  (->> (reduce (fn [acc val]
-                 (-> (reduce-kv (fn [a k v] (if (= v \#)
-                                              (update a :data #(conj % [(+ 100 k) (:row a) 100]))
-                                              a))
-                                acc (vec val))
-                     (update :row inc)
-                     ))
-               {:row 100 :data []} input)
-       :data))
-
-(defn input->conway4d
-  [input]
-  (->> (reduce (fn [acc val]
-                 (-> (reduce-kv (fn [a k v] (if (= v \#)
-                                              (update a :data #(conj % [(+ 100 k) (:row a) 100 100]))
-                                              a))
-                                acc (vec val))
-                     (update :row inc)
-                     ))
-               {:row 100 :data []} input)
-       :data))
+  [n input]
+  "Converts 2d input slice to n-d Conway space starting at [100 100...100]."
+  (let [origin 100
+        extra-dim (for [_ (range 0 (- n 2))] origin)]
+    (->> (reduce (fn [acc val]
+                   (-> (reduce-kv (fn [a k v] (if (= v \#)
+                                                (update a :data #(conj % (into [(+ 100 k) (:row a)] extra-dim)))
+                                                a))
+                                  acc (vec val))
+                       (update :row inc)
+                       ))
+                 {:row origin :data []} input)
+         :data)))
 
 (defn conway->nextgen-extents
   [dim data]
@@ -1121,23 +1112,12 @@
        (partition 2)))
 
 (defn conway-count-neighbors
-  [[cx cy cz] data]
-  (let [pred-x (fn [[x _ _]] (-> (- cx x) math/abs (<= 1)))
-        pred-y (fn [[_ y _]] (-> (- cy y) math/abs (<= 1)))
-        pred-z (fn [[_ _ z]] (-> (- cz z) math/abs (<= 1)))
-        pred-self #(not= [cx cy cz] %)
-        pred (every-pred pred-x pred-y pred-z pred-self)]
-    (->> (filter pred data)
-         count)))
-
-(defn conway-count-neighbors4d
-  [[cx cy cz cw] data]
-  (let [pred-x (fn [[x _ _ _]] (-> (- cx x) math/abs (<= 1)))
-        pred-y (fn [[_ y _ _]] (-> (- cy y) math/abs (<= 1)))
-        pred-z (fn [[_ _ z _]] (-> (- cz z) math/abs (<= 1)))
-        pred-w (fn [[_ _ _ w]] (-> (- cw w) math/abs (<= 1)))
-        pred-self #(not= [cx cy cz cw] %)
-        pred (every-pred pred-x pred-y pred-z pred-w pred-self)]
+  [cube data]
+  (let [preds (for [d (range 0 (count cube))]
+                (fn [c] (-> (- (nth cube d) (nth c d)) math/abs (<= 1)))
+                )
+        pred-self #(not= cube %)
+        pred (every-pred (apply every-pred preds) pred-self)]
     (->> (filter pred data)
          count)))
 
@@ -1168,7 +1148,7 @@
             y (apply range y-range)
             z (apply range z-range)
             w (apply range w-range)]
-        (conway-cube-state [x y z w] conway-count-neighbors4d data))
+        (conway-cube-state [x y z w] conway-count-neighbors data))
       (remove #(nil? %)))))
 
 (defn conway-generations
@@ -1177,19 +1157,38 @@
          data data]
     (if (= 0 n)
       data
-        (recur (dec n) (gfn data)))))
+      (recur (dec n) (gfn data)))))
+
+(comment
+  (defn debug [x] (println x) x)
+
+  (defn cart [colls]
+    (if (empty? colls)
+      '(())
+      (for [more (cart (rest colls))
+            x (first colls)]
+        (cons x more))))
+
+  (defn conway-one-generationx
+    [n data]
+    (let [pts (->> (conway->nextgen-extents n data) cart)]
+      (->> (for [pt pts]
+             (conway-cube-state pt conway-count-neighbors data))
+           (remove #(nil? %)))))
+
+  )
 
 (defn advent-17-1
-  [n input]
+  [n dim input]
   (->> (input->seq input)
-       input->conway
+       (input->conway dim)
        (conway-generations n conway-one-generation)
        count))
 
 (defn advent-17-2
-  [n input]
+  [n dim input]
   (->> (input->seq input)
-       input->conway4d
+       (input->conway dim)
        (conway-generations n conway-one-generation4d)
        count))
 
@@ -1226,4 +1225,6 @@
   (advent-15 30000000 '(7 14 0 17 11 1 2))
   (advent-16-1 "day16.txt")
   (advent-16-2 "day16.txt" "departure")
+  (advent-17-1 6 3 "day17.txt")
+  (advent-17-2 6 4 "day17.txt")
   )
