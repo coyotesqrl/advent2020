@@ -987,19 +987,15 @@
 
 (defn read-tix
   [line]
-  (as-> (str/split line #"\n") d
-        (rest d)
-        (map #(str/split % #",") d)
-        (map (fn [v] (map #(Integer/parseInt %) v)) d)))
+  (->> (str/split line #"\n")
+       rest
+       (map #(str/split % #","))
+       (map (fn [v] (map #(Integer/parseInt %) v)))))
 
 (defn read-tickets
   [input]
-  (let [[r m n] (input->groups input)
-        rules (ticket-rules r)
-        my-tic (->> (read-tix m) first)
-        near-tix (read-tix n)]
-
-    {:r rules :m my-tic :n near-tix}))
+  (let [[r m n] (input->groups input)]
+    {:r (ticket-rules r) :m (->> (read-tix m) first) :n (read-tix n)}))
 
 (defn rules->testfn
   [rules]
@@ -1055,22 +1051,21 @@
   [input prefix]
   (let [rules (rules->fieldfn (:r input))
         valid-tix (discard-invalid-tix input)]
-    (->>
-      (for [t valid-tix]
-        (reduce-kv (fn [ta tk tv]
-                     (reduce (fn [a v] (update a tk #(conj % (v tv))))
-                             ta rules))
-                   {} (vec t)))
-      (reduce (fn [a v]
-                (reduce-kv (fn [ar kr vr] (update ar kr #(conj % (set vr))))
-                           a v))
-              {})
-      (reduce-kv (fn [a k v] (assoc a k (apply intersection v))) {})
+    (->> (for [t valid-tix]
+           (reduce-kv (fn [ta tk tv]
+                        (reduce (fn [a v] (update a tk #(conj % (v tv))))
+                                ta rules))
+                      {} (vec t)))
+         (reduce (fn [a v]
+                   (reduce-kv (fn [ar kr vr] (update ar kr #(conj % (set vr))))
+                              a v))
+                 {})
+         (reduce-kv (fn [a k v] (assoc a k (apply intersection v))) {})
 
-      remove-invalid-fields
-      (map (fn [[k v]] [(first v) k]))
-      (filter #(str/starts-with? (first %) prefix))
-      (map second))))
+         remove-invalid-fields
+         (map (fn [[k v]] [(first v) k]))
+         (filter #(str/starts-with? (first %) prefix))
+         (map second))))
 
 (defn sum-tix-field
   [input fields]
