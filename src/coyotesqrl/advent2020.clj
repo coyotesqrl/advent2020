@@ -1085,6 +1085,114 @@
         tix-fields (determine-tix-fields input prefix)]
     (sum-tix-field input tix-fields)))
 
+; ************
+; Day 17
+; ************
+(defn input->conway
+  [input]
+  (->> (reduce (fn [acc val]
+                 (-> (reduce-kv (fn [a k v] (if (= v \#)
+                                              (update a :data #(conj % [(+ 100 k) (:row a) 100]))
+                                              a))
+                                acc (vec val))
+                     (update :row inc)
+                     ))
+               {:row 100 :data []} input)
+       :data))
+
+(defn input->conway4d
+  [input]
+  (->> (reduce (fn [acc val]
+                 (-> (reduce-kv (fn [a k v] (if (= v \#)
+                                              (update a :data #(conj % [(+ 100 k) (:row a) 100 100]))
+                                              a))
+                                acc (vec val))
+                     (update :row inc)
+                     ))
+               {:row 100 :data []} input)
+       :data))
+
+(defn conway->nextgen-extents
+  [dim data]
+  "Gets the extents of the next generation as range functions."
+  (->> (for [pos (range 0 dim)
+             f [(comp dec min) (comp #(+ 2 %) max)]]
+         (apply f (map #(nth % pos) data)))
+       (partition 2)))
+
+(defn conway-count-neighbors
+  [[cx cy cz] data]
+  (let [pred-x (fn [[x _ _]] (-> (- cx x) math/abs (<= 1)))
+        pred-y (fn [[_ y _]] (-> (- cy y) math/abs (<= 1)))
+        pred-z (fn [[_ _ z]] (-> (- cz z) math/abs (<= 1)))
+        pred-self #(not= [cx cy cz] %)
+        pred (every-pred pred-x pred-y pred-z pred-self)]
+    (->> (filter pred data)
+         count)))
+
+(defn conway-count-neighbors4d
+  [[cx cy cz cw] data]
+  (let [pred-x (fn [[x _ _ _]] (-> (- cx x) math/abs (<= 1)))
+        pred-y (fn [[_ y _ _]] (-> (- cy y) math/abs (<= 1)))
+        pred-z (fn [[_ _ z _]] (-> (- cz z) math/abs (<= 1)))
+        pred-w (fn [[_ _ _ w]] (-> (- cw w) math/abs (<= 1)))
+        pred-self #(not= [cx cy cz cw] %)
+        pred (every-pred pred-x pred-y pred-z pred-w pred-self)]
+    (->> (filter pred data)
+         count)))
+
+(defn conway-cube-state
+  [cube nfn data]
+  (let [neighbor-cnt (nfn cube data)
+        active (some #(= cube %) data)]
+    (cond
+      (= 3 neighbor-cnt) cube
+      (and active (= 2 neighbor-cnt)) cube
+      :else nil)))
+
+(defn conway-one-generation
+  [data]
+  (let [[x-range y-range z-range] (conway->nextgen-extents 3 data)]
+    (->>
+      (for [x (apply range x-range)
+            y (apply range y-range)
+            z (apply range z-range)]
+        (conway-cube-state [x y z] conway-count-neighbors data))
+      (remove #(nil? %)))))
+
+(defn conway-one-generation4d
+  [data]
+  (let [[x-range y-range z-range w-range] (conway->nextgen-extents 4 data)]
+    (->>
+      (for [x (apply range x-range)
+            y (apply range y-range)
+            z (apply range z-range)
+            w (apply range w-range)]
+        (conway-cube-state [x y z w] conway-count-neighbors4d data))
+      (remove #(nil? %)))))
+
+(defn conway-generations
+  [n gfn data]
+  (loop [n n
+         data data]
+    (if (= 0 n)
+      data
+        (recur (dec n) (gfn data)))))
+
+(defn advent-17-1
+  [n input]
+  (->> (input->seq input)
+       input->conway
+       (conway-generations n conway-one-generation)
+       count))
+
+(defn advent-17-2
+  [n input]
+  (->> (input->seq input)
+       input->conway4d
+       (conway-generations n conway-one-generation4d)
+       count))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
