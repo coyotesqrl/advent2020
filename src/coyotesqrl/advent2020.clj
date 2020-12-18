@@ -952,8 +952,7 @@
       :val)))
 
 (deftest test-mem-game
-  "N.B. This improved solution is still slow, around 20-30 seconds for
-  each of the latter seven inputs."
+  "N.B. This improved solution is still slow, so only this subset is run by default during a build."
   (are [n input exp] (= exp (advent-15 n input))
                      2020 '(0 3 6) 436
                      2020 '(1 3 2) 1
@@ -961,14 +960,21 @@
                      2020 '(1 2 3) 27
                      2020 '(2 3 1) 78
                      2020 '(3 2 1) 438
-                     2020 '(3 1 2) 1836
-                     30000000 '(0 3 6) 175594
-                     30000000 '(1 3 2) 2578
-                     30000000 '(2 1 3) 3544142
-                     30000000 '(1 2 3) 261214
-                     30000000 '(2 3 1) 6895259
-                     30000000 '(3 2 1) 18
-                     30000000 '(3 1 2) 362))
+                     2020 '(3 1 2) 1836))
+
+(comment
+  (deftest test-mem-game-slow
+    "N.B. This improved solution is still slow, so this subset is not run by default during a build."
+    (are [n input exp] (= exp (advent-15 n input))
+                       30000000 '(0 3 6) 175594
+                       30000000 '(1 3 2) 2578
+                       30000000 '(2 1 3) 3544142
+                       30000000 '(1 2 3) 261214
+                       30000000 '(2 3 1) 6895259
+                       30000000 '(3 2 1) 18
+                       30000000 '(3 1 2) 362))
+  )
+
 
 ; ************
 ; Day 16
@@ -1163,19 +1169,36 @@
 ; ************
 ; Day 18
 ; ************
-(def new-math
-  (insta/parser (io/resource "day18.grammar")))
+(def new-math (insta/parser (io/resource "day18-no-precedence.grammar")))
+
+(def new-math-2 (insta/parser (io/resource "day18-plus-precedence.grammar")))
 
 (def transform-options
-  {:add +
-   :mul *
+  {:add    +
+   :mul    *
    :number clojure.edn/read-string
-   :expr identity})
+   :expr   identity})
 
-(defn advent-18-1
-  [input]
+(deftest test-18-no-precedence
+  (are [input exp] (= (->> (new-math input) (insta/transform transform-options)) exp)
+                   "1 + (2 * 3) + (4 * (5 + 6))" 51
+                   "2 * 3 + (4 * 5)" 26
+                   "5 + (8 * 3 + 9 + 3 * 4 * 3)" 437
+                   "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))" 12240
+                   "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2" 13632))
+
+(deftest test-18-plus-precedence
+  (are [input exp] (= (->> (new-math-2 input) (insta/transform transform-options)) exp)
+                   "1 + (2 * 3) + (4 * (5 + 6))" 51
+                   "2 * 3 + (4 * 5)" 46
+                   "5 + (8 * 3 + 9 + 3 * 4 * 3)" 1445
+                   "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))" 669060
+                   "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2" 23340))
+
+(defn advent-18
+  [input m]
   (->> (input->seq input)
-       (map new-math)
+       (map m)
        (map #(insta/transform transform-options %))
        (apply +)))
 
@@ -1214,5 +1237,6 @@
   (advent-16-2 "day16.txt" "departure")
   (advent-17 6 3 "day17.txt")
   (advent-17 6 4 "day17.txt")
-  (advent-18-1 "day18.txt")
+  (advent-18 "day18.txt" new-math)
+  (advent-18 "day18.txt" new-math-2)
   )

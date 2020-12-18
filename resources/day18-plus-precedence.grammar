@@ -1,0 +1,7 @@
+expr = mul
+mul = add (<sp> <'*'> <sp> add)*
+add = term (<sp> <'+'> <sp> term)*
+<term> = number | group
+<group> = <'('> expr <')'>
+<sp> = <#'[ ]+'>
+number = #'[0-9]+'
