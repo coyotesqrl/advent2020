@@ -1103,19 +1103,28 @@
                  {:row origin :data []} input)
          :data)))
 
+(defn cartesian
+  [colls]
+  (if (empty? colls)
+    '(())
+    (for [more (cartesian (rest colls))
+          x (first colls)]
+      (cons x more))))
+
 (defn conway->nextgen-extents
   [dim data]
   "Gets the extents of the next generation as range functions."
   (->> (for [pos (range 0 dim)
              f [(comp dec min) (comp #(+ 2 %) max)]]
          (apply f (map #(nth % pos) data)))
-       (partition 2)))
+       (partition 2)
+       (map (fn [[a b]] (range a b)))
+       cartesian))
 
 (defn conway-count-neighbors
   [cube data]
   (let [preds (for [d (range 0 (count cube))]
-                (fn [c] (-> (- (nth cube d) (nth c d)) math/abs (<= 1)))
-                )
+                (fn [c] (-> (- (nth cube d) (nth c d)) math/abs (<= 1))))
         pred-self #(not= cube %)
         pred (every-pred (apply every-pred preds) pred-self)]
     (->> (filter pred data)
@@ -1131,65 +1140,25 @@
       :else nil)))
 
 (defn conway-one-generation
-  [data]
-  (let [[x-range y-range z-range] (conway->nextgen-extents 3 data)]
-    (->>
-      (for [x (apply range x-range)
-            y (apply range y-range)
-            z (apply range z-range)]
-        (conway-cube-state [x y z] conway-count-neighbors data))
-      (remove #(nil? %)))))
-
-(defn conway-one-generation4d
-  [data]
-  (let [[x-range y-range z-range w-range] (conway->nextgen-extents 4 data)]
-    (->>
-      (for [x (apply range x-range)
-            y (apply range y-range)
-            z (apply range z-range)
-            w (apply range w-range)]
-        (conway-cube-state [x y z w] conway-count-neighbors data))
-      (remove #(nil? %)))))
+  [n data]
+  (let [pts (conway->nextgen-extents n data)]
+    (->> (for [pt pts]
+           (conway-cube-state pt conway-count-neighbors data))
+         (remove #(nil? %)))))
 
 (defn conway-generations
-  [n gfn data]
+  [n dim data]
   (loop [n n
          data data]
     (if (= 0 n)
       data
-      (recur (dec n) (gfn data)))))
+      (recur (dec n) (conway-one-generation dim data)))))
 
-(comment
-  (defn debug [x] (println x) x)
-
-  (defn cart [colls]
-    (if (empty? colls)
-      '(())
-      (for [more (cart (rest colls))
-            x (first colls)]
-        (cons x more))))
-
-  (defn conway-one-generationx
-    [n data]
-    (let [pts (->> (conway->nextgen-extents n data) cart)]
-      (->> (for [pt pts]
-             (conway-cube-state pt conway-count-neighbors data))
-           (remove #(nil? %)))))
-
-  )
-
-(defn advent-17-1
+(defn advent-17
   [n dim input]
   (->> (input->seq input)
        (input->conway dim)
-       (conway-generations n conway-one-generation)
-       count))
-
-(defn advent-17-2
-  [n dim input]
-  (->> (input->seq input)
-       (input->conway dim)
-       (conway-generations n conway-one-generation4d)
+       (conway-generations n dim)
        count))
 
 (comment
@@ -1225,6 +1194,6 @@
   (advent-15 30000000 '(7 14 0 17 11 1 2))
   (advent-16-1 "day16.txt")
   (advent-16-2 "day16.txt" "departure")
-  (advent-17-1 6 3 "day17.txt")
-  (advent-17-2 6 4 "day17.txt")
+  (advent-17 6 3 "day17.txt")
+  (advent-17 6 4 "day17.txt")
   )
