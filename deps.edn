@@ -4,5 +4,6 @@
            org.clojure/math.numeric-tower {:mvn/version "0.0.4"}
            org.clojure/core.async         {:mvn/version "0.6.532"}
            aysylu/loom                    {:mvn/version "1.0.2"}
+           instaparse                     {:mvn/version "1.4.10"}
            tupelo/tupelo                  {:mvn/version "20.12.15"}}
  :aliases {:test {:main-opts [-m "coyotesqrl.advent2020"]}}}

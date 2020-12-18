@@ -1,0 +1,8 @@
+expr = operation
+<operation> = mul | add
+mul = (term | mul | add) <sp> <'*'> <sp> term
+add = (term | add | mul) <sp> <'+'> <sp> term
+<term> = number | group
+<group> = <'('> (group | mul | add) <')'>
+<sp> = <#'[ ]+'>
+number = #'[0-9]+'

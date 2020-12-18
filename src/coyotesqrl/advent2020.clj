@@ -6,7 +6,8 @@
             [clojure.set :refer [difference intersection union map-invert]]
             [clojure.math.numeric-tower :as math]
             [clojure.spec.alpha :as s]
-            [loom.graph :as g]))
+            [loom.graph :as g]
+            [instaparse.core :as insta]))
 
 ;
 ; Common functions. Functions here will be generally useful for all/many advent puzzles
@@ -1159,6 +1160,25 @@
        (conway-generations n dim)
        count))
 
+; ************
+; Day 18
+; ************
+(def new-math
+  (insta/parser (io/resource "day18.grammar")))
+
+(def transform-options
+  {:add +
+   :mul *
+   :number clojure.edn/read-string
+   :expr identity})
+
+(defn advent-18-1
+  [input]
+  (->> (input->seq input)
+       (map new-math)
+       (map #(insta/transform transform-options %))
+       (apply +)))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -1194,4 +1214,5 @@
   (advent-16-2 "day16.txt" "departure")
   (advent-17 6 3 "day17.txt")
   (advent-17 6 4 "day17.txt")
+  (advent-18-1 "day18.txt")
   )
