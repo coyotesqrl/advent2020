@@ -659,11 +659,9 @@
       (for [c (range 0 (count row))
             :let [seat (get row c)
                   neigh-cnt (count-occupied-neighbors grid ((seat-key row-idx c) all-neighbors))]]
-        (let [x 1]
-          (cond (= seat \.) \.
-                (= seat \L) (if (= 0 neigh-cnt) \# \L)
-                (= seat \#) (if (<= occmax neigh-cnt) \L \#))
-          ))
+        (cond (= seat \.) \.
+              (= seat \L) (if (= 0 neigh-cnt) \# \L)
+              (= seat \#) (if (<= occmax neigh-cnt) \L \#)))
       (apply str)
       )))
 
@@ -1131,8 +1129,8 @@
          count)))
 
 (defn conway-cube-state
-  [cube nfn data]
-  (let [neighbor-cnt (nfn cube data)
+  [cube data]
+  (let [neighbor-cnt (conway-count-neighbors cube data)
         active (some #(= cube %) data)]
     (cond
       (= 3 neighbor-cnt) cube
@@ -1143,7 +1141,7 @@
   [n data]
   (let [pts (conway->nextgen-extents n data)]
     (->> (for [pt pts]
-           (conway-cube-state pt conway-count-neighbors data))
+           (conway-cube-state pt data))
          (remove #(nil? %)))))
 
 (defn conway-generations
