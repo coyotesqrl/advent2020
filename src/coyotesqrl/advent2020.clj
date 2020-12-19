@@ -1208,10 +1208,7 @@
 (defn advent-19
   [input]
   (let [[grammar input] (input->groups input)
-        grammar (->> (str/split grammar #"\n")
-                     (sort-by #(Integer/parseInt (first (str/split % #":"))))
-                     (str/join "\n"))
-        parser (insta/parser grammar)
+        parser (insta/parser grammar :start :0)
         parsable? #(->> (insta/parses parser %) insta/failure? not)]
     (->> (str/split input #"\n")
          (filter parsable?)
