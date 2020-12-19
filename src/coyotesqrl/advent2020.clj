@@ -1202,6 +1202,21 @@
        (map #(insta/transform transform-options %))
        (apply +)))
 
+; ************
+; Day 19
+; ************
+(defn advent-19
+  [input]
+  (let [[grammar input] (input->groups input)
+        grammar (->> (str/split grammar #"\n")
+                     (sort-by #(Integer/parseInt (first (str/split % #":"))))
+                     (str/join "\n"))
+        parser (insta/parser grammar)]
+    (->> (str/split input #"\n")
+         (map #(insta/parses parser %))
+         (remove insta/failure?)
+         count)))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
@@ -1239,4 +1254,6 @@
   (advent-17 6 4 "day17.txt")
   (advent-18 "day18.txt" new-math)
   (advent-18 "day18.txt" new-math-2)
+  (advent-19 "day19.txt")
+  (advent-19 "day19-2.txt")
   )
