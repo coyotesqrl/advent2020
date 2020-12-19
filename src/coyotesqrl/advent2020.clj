@@ -1211,10 +1211,10 @@
         grammar (->> (str/split grammar #"\n")
                      (sort-by #(Integer/parseInt (first (str/split % #":"))))
                      (str/join "\n"))
-        parser (insta/parser grammar)]
+        parser (insta/parser grammar)
+        parsable? #(->> (insta/parses parser %) insta/failure? not)]
     (->> (str/split input #"\n")
-         (map #(insta/parses parser %))
-         (remove insta/failure?)
+         (filter parsable?)
          count)))
 
 (comment
