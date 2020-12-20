@@ -5,5 +5,6 @@
            org.clojure/core.async         {:mvn/version "0.6.532"}
            aysylu/loom                    {:mvn/version "1.0.2"}
            instaparse/instaparse          {:mvn/version "1.4.10"}
-           tupelo/tupelo                  {:mvn/version "20.12.15"}}
+           tupelo/tupelo                  {:mvn/version "20.12.15"}
+           djblue/portal                  {:mvn/version "RELEASE"}}
  :aliases {:test {:main-opts [-m "coyotesqrl.advent2020"]}}}
