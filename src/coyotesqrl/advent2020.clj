@@ -1214,6 +1214,72 @@
          (filter parsable?)
          count)))
 
+; ************
+; Day 20
+; ************
+(defn debug [x] (println x) x)
+
+(defn binstr->numpair
+  [s]
+  (as-> (str/replace s #"#" "1") d
+        (str/replace d #"\." "0")
+        (vector d (str/reverse d))
+        (mapv #(Integer/parseInt % 2) d)))
+
+(defn maptile
+  [input]
+  (let [[_ tileno] (->> (first input) (re-matches #"Tile (\d*):"))
+        buffer (rest input)
+        top (first buffer)
+        right (apply str (map last buffer))
+        bottom (last buffer)
+        left (apply str (map first buffer))]
+    (into {:tile tileno}
+          (->> (list top right bottom left)
+               (map (fn [v] {:border (binstr->numpair v)}))
+               (zipmap '(:top :right :bottom :left))))))
+
+(defn edge-count
+  [t tiles]
+  (let [othr-edges (->> (filter #(not= (:tile t) (:tile %)) tiles)
+                        (map #(dissoc % :tile))
+                        (map vals)
+                        flatten
+                        (map vals)
+                        flatten
+                        frequencies)
+        up-cnt #(assoc % :match-cnt (get othr-edges (first (:border %))))]
+    (-> (update t :top up-cnt)
+        (update :bottom up-cnt)
+        (update :left up-cnt)
+        (update :right up-cnt))))
+
+(defn count-nil-matched-edges
+  [tile]
+  (->> (dissoc tile :tile)
+       vals
+       (map :match-cnt)
+       (filter nil?)
+       count))
+
+(defn tile->unmatched-edge-cnt
+  [tiles]
+  (println tiles)
+  (->> (map #(edge-count % tiles) tiles)
+       (map (fn [v] (into v {:nil-edge (count-nil-matched-edges v)})))
+       (filter #(>= (:nil-edge %) 2))
+       (map :tile)
+       (map #(Integer/parseInt %))
+       (apply *)))
+
+
+(defn advent-20-1
+  [input]
+  (->> (input->groups input)
+       (map str/split-lines)
+       (mapv maptile)
+       tile->unmatched-edge-cnt))
+
 (comment
   (advent-1 2 "day1.txt")
   (advent-1 3 "day1.txt")
