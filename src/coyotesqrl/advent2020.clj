@@ -1262,15 +1262,32 @@
        (filter nil?)
        count))
 
-(defn tile->unmatched-edge-cnt
+(defn get-corner-tiles
   [tiles]
-  (println tiles)
   (->> (map #(edge-count % tiles) tiles)
        (map (fn [v] (into v {:nil-edge (count-nil-matched-edges v)})))
-       (filter #(>= (:nil-edge %) 2))
+       (filter #(>= (:nil-edge %) 2))))
+
+(defn tile->unmatched-edge-cnt
+  [tiles]
+  (->> (get-corner-tiles tiles)
        (map :tile)
        (map #(Integer/parseInt %))
        (apply *)))
+
+(defn stitch-tiles
+  [tiles]
+  (let [corners (get-corner-tiles tiles)
+        tl (first corners)
+        tiles (filter #(not= (:tile tl) (:tile %)) tiles)
+        size (math/sqrt (count tiles))]
+
+    (loop [corners corners
+           grid [[]]]
+      )
+    corners
+    )
+  )
 
 
 (defn advent-20-1
@@ -1279,6 +1296,78 @@
        (map str/split-lines)
        (mapv maptile)
        tile->unmatched-edge-cnt))
+
+; ************
+; Day 21
+; ************
+
+; ************
+; Day 22
+; ************
+(defn deck->winscore
+  [d]
+  (let [d (vec d)
+        decksize (count d)]
+    (->> (map-indexed #(* %2 (- decksize %1)) d)
+         (apply +))))
+
+(defn combat-concat
+  [d1 d2 &ignore]
+  (let [c1 (first d1)
+        c2 (first d2)
+        d1 (rest d1)
+        d2 (rest d2)]
+    (if (> c1 c2)
+      [(concat d1 (list c1 c2)) d2]
+      [d1 (concat d2 (list c2 c1))])))
+
+(declare play-combat)
+(declare combat-recurse)
+
+(defn play-subgame
+  [d1 d2 c1 c2 prev-games]
+  (let [winner (first (play-combat (take c1 d1) (take c2 d2) combat-recurse))]
+    (if (= :d1 winner)
+      [(concat d1 (list c1 c2)) d2 prev-games]
+      [d1 (concat d2 (list c2 c1)) prev-games])))
+
+(defn combat-recurse
+  [d1 d2 prev-games]
+  (let [this-game (str (str/join "-" d1) "/" (str/join "-" d2))]
+    (if (contains? prev-games this-game)
+      [d1 '() prev-games]
+      (let [prev-games (conj prev-games this-game)
+            c1 (first d1)
+            c2 (first d2)
+            d1 (rest d1)
+            d2 (rest d2)]
+        (cond (and (<= c1 (count d1)) (<= c2 (count d2))) (play-subgame d1 d2 c1 c2 prev-games)
+              (> c1 c2) [(concat d1 (list c1 c2)) d2 prev-games]
+              :else [d1 (concat d2 (list c2 c1)) prev-games])))))
+
+(defn play-combat
+  ([d1 d2 f] (play-combat d1 d2 f #{}))
+  ([d1 d2 f prev-games]
+   (as-> (loop [[d1 d2 prev-games] [d1 d2 prev-games]]
+           (cond (empty? d1) [:d2 d2]
+                 (empty? d2) [:d1 d1]
+                 :else (recur (f d1 d2 prev-games)))) d
+         [(first d) (deck->winscore (second d))])))
+
+(defn advent-22
+  [input f]
+  (as-> (input->groups input) d
+        (map str/split-lines d)
+        (map rest d)
+        (map (fn [v] (map #(Integer/parseInt %) v)) d)
+        (play-combat (first d) (second d) f)))
+
+(deftest test-play-combat
+  (are [result d1 d2 f] (= result (play-combat d1 d2 f))
+                           [:d2 306] '(9 2 6 3 1) '(5 8 4 7 10) combat-concat
+                           [:d1 105] '(43 19) '(2 29 14) combat-recurse
+                           [:d2 291] '(9 2 6 3 1) '(5 8 4 7 10) combat-recurse))
+
 
 (comment
   (advent-1 2 "day1.txt")
@@ -1319,4 +1408,7 @@
   (advent-18 "day18.txt" new-math-2)
   (advent-19 "day19.txt")
   (advent-19 "day19-2.txt")
+
+  (advent-22 "day22.txt" combat-concat)
+  (advent-22 "day22.txt" combat-recurse)
   )
