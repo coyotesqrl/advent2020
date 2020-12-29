@@ -1300,6 +1300,76 @@
 ; ************
 ; Day 21
 ; ************
+(defn input->allergens
+  [input]
+  (let [rfn (fn [[f a]] (vector (str/split f #" ")
+                                (if a
+                                  (as-> (re-matches #"contains ([^\)]*)\)" a) d
+                                        (second d)
+                                        (str/split d #",")
+                                        (mapv #(str/trim %) d))
+                                  [])))]
+    (->> (input->seq input)
+         (map #(str/split % #"\("))
+         (map rfn))))
+
+(defn get-all-allergens
+  [input]
+  (->> (map second input)
+       flatten
+       set))
+
+(defn get-potential-foods
+  [input allergens]
+  (reduce (fn [a v]
+            (assoc a v
+                     (->> (filter #(some (fn [f] (= v f)) (second %)) input)
+                          (map first)
+                          (map set)
+                          (apply intersection))))
+          {}
+          allergens))
+
+(defn remove-matches
+  [input matched]
+  (let [ing (apply union (map second matched))
+        allergens (set (map first matched))]
+    (map (fn [r] (vector (into [] (difference (set (first r)) ing))
+                         (into [] (difference (set (second r)) allergens))))
+         input)))
+
+(defn match-allergens
+  [input]
+  (let [extract-single-match (fn [p] (filter #(= 1 (count (second %))) p))]
+    (loop [input input
+           acc {}]
+      (let [allergens (get-all-allergens input)
+            potentials (get-potential-foods input allergens)]
+        (if (empty? potentials)
+          acc
+          (let [sing (extract-single-match potentials)
+                input (remove-matches input sing)]
+            (recur input (into acc sing))))))))
+
+(defn advent-21-1
+  [input]
+  (let [input (input->allergens input)
+        allergens (match-allergens input)
+        all-ing (apply union (map second allergens))]
+    (->> (map first input)
+         (map set)
+         (map #(difference % all-ing))
+         (map count)
+         (apply +))))
+
+(defn advent-21-2
+  [input]
+  (->> (match-allergens (input->allergens input))
+       (into (sorted-map))
+       (map second)
+       (map seq)
+       flatten
+       (str/join ",")))
 
 ; ************
 ; Day 22
@@ -1364,10 +1434,9 @@
 
 (deftest test-play-combat
   (are [result d1 d2 f] (= result (play-combat d1 d2 f))
-                           [:d2 306] '(9 2 6 3 1) '(5 8 4 7 10) combat-concat
-                           [:d1 105] '(43 19) '(2 29 14) combat-recurse
-                           [:d2 291] '(9 2 6 3 1) '(5 8 4 7 10) combat-recurse))
-
+                        [:d2 306] '(9 2 6 3 1) '(5 8 4 7 10) combat-concat
+                        [:d1 105] '(43 19) '(2 29 14) combat-recurse
+                        [:d2 291] '(9 2 6 3 1) '(5 8 4 7 10) combat-recurse))
 
 (comment
   (advent-1 2 "day1.txt")
@@ -1409,6 +1478,8 @@
   (advent-19 "day19.txt")
   (advent-19 "day19-2.txt")
 
+  (advent-21-1 "day21.txt")
+  (advent-21-2 "day21.txt")
   (advent-22 "day22.txt" combat-concat)
   (advent-22 "day22.txt" combat-recurse)
   )
